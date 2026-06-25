@@ -28,7 +28,25 @@ const translations = {
     intermediate: "📘 Intermediate",
     beginner: "🌱 Beginner",
     questionLabel: "Question",
-    sorry: "Sorry"
+    sorry: "Sorry",
+    login: "Login",
+    register: "Register",
+    fullName: "Full Name",
+    email: "Email",
+    password: "Password",
+    confirmPassword: "Confirm Password",
+    loginButton: "Login",
+    registerButton: "Register",
+    authSuccessLogin: "Login successful",
+    authSuccessRegister: "Account created successfully",
+    authError: "Please fill in all required fields",
+    authPasswordMismatch: "Passwords do not match",
+    logout: "Logout",
+    welcome: "Welcome",
+    loggedInAs: "You are signed in as",
+    accountExists: "An account with this email already exists",
+    invalidCredentials: "Email or password is incorrect",
+    loginToUnlock: "Login or register to unlock the quiz"
   },
   fr: {
     title: "Plateforme d'apprentissage alimentée par l'IA",
@@ -59,7 +77,25 @@ const translations = {
     intermediate: "📘 Intermédiaire",
     beginner: "🌱 Débutant",
     questionLabel: "Question",
-    sorry: "Désolé"
+    sorry: "Désolé",
+    login: "Connexion",
+    register: "Créer un compte",
+    fullName: "Nom complet",
+    email: "E-mail",
+    password: "Mot de passe",
+    confirmPassword: "Confirmer le mot de passe",
+    loginButton: "Se connecter",
+    registerButton: "Créer le compte",
+    authSuccessLogin: "Connexion réussie",
+    authSuccessRegister: "Compte créé avec succès",
+    authError: "Veuillez remplir tous les champs requis",
+    authPasswordMismatch: "Les mots de passe ne correspondent pas",
+    logout: "Déconnexion",
+    welcome: "Bienvenue",
+    loggedInAs: "Vous êtes connecté en tant que",
+    accountExists: "Un compte avec cet e-mail existe déjà",
+    invalidCredentials: "L’e-mail ou le mot de passe est incorrect",
+    loginToUnlock: "Connectez-vous ou créez un compte pour débloquer le quiz"
   }
 };
 
@@ -191,6 +227,30 @@ let currentLanguage = "en";
 let selectedCategory = "";
 let selectedDomain = "";
 let questions = [];
+let authMode = "login";
+let currentUser = null;
+
+const AUTH_USERS_KEY = "luniq-users";
+const AUTH_CURRENT_USER_KEY = "luniq-current-user";
+let authMemory = { users: [], currentUser: null };
+
+function storageAvailable(type) {
+  try {
+    const storage = window[type];
+    const testKey = "__luniq_test__";
+    storage.setItem(testKey, "1");
+    storage.removeItem(testKey);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function getStorage() {
+  if (storageAvailable("localStorage")) return localStorage;
+  if (storageAvailable("sessionStorage")) return sessionStorage;
+  return null;
+}
 
 function getDomainPlaceholderText() {
   return translations[currentLanguage].chooseDomain;
@@ -224,6 +284,234 @@ function updateTextLabels() {
     levelSelect.options[1].textContent = lang.normal;
     levelSelect.options[2].textContent = lang.hard;
   }
+
+  const showLoginBtn = document.getElementById("show-login-btn");
+  const showRegisterBtn = document.getElementById("show-register-btn");
+  const loginTab = document.getElementById("tab-login");
+  const registerTab = document.getElementById("tab-register");
+  const loginEmailLabel = document.getElementById("login-email-label");
+  const loginPwdLabel = document.getElementById("login-password-label");
+  const loginSubmitBtn = document.getElementById("login-submit-btn");
+  const registerNameLabel = document.getElementById("register-name-label");
+  const registerEmailLabel = document.getElementById("register-email-label");
+  const registerPwdLabel = document.getElementById("register-password-label");
+  const registerConfirmLabel = document.getElementById("register-confirm-label");
+  const registerSubmitBtn = document.getElementById("register-submit-btn");
+
+  if (showLoginBtn) showLoginBtn.textContent = lang.login;
+  if (showRegisterBtn) showRegisterBtn.textContent = lang.register;
+  if (loginTab) loginTab.textContent = lang.login;
+  if (registerTab) registerTab.textContent = lang.register;
+  if (loginEmailLabel) loginEmailLabel.textContent = lang.email;
+  if (loginPwdLabel) loginPwdLabel.textContent = lang.password;
+  if (loginSubmitBtn) loginSubmitBtn.textContent = lang.loginButton;
+  if (registerNameLabel) registerNameLabel.textContent = lang.fullName;
+  if (registerEmailLabel) registerEmailLabel.textContent = lang.email;
+  if (registerPwdLabel) registerPwdLabel.textContent = lang.password;
+  if (registerConfirmLabel) registerConfirmLabel.textContent = lang.confirmPassword;
+  if (registerSubmitBtn) registerSubmitBtn.textContent = lang.registerButton;
+}
+
+function loadUsers() {
+  const storage = getStorage();
+  if (storage) {
+    try {
+      return JSON.parse(storage.getItem(AUTH_USERS_KEY)) || [];
+    } catch {
+      return [];
+    }
+  }
+  return authMemory.users;
+}
+
+function saveUsers(users) {
+  const storage = getStorage();
+  if (storage) {
+    storage.setItem(AUTH_USERS_KEY, JSON.stringify(users));
+  } else {
+    authMemory.users = users;
+  }
+}
+
+function loadCurrentUser() {
+  const storage = getStorage();
+  if (storage) {
+    try {
+      return JSON.parse(storage.getItem(AUTH_CURRENT_USER_KEY));
+    } catch {
+      return null;
+    }
+  }
+  return authMemory.currentUser;
+}
+
+function saveCurrentUser(user) {
+  const storage = getStorage();
+  if (storage) {
+    if (user) {
+      storage.setItem(AUTH_CURRENT_USER_KEY, JSON.stringify(user));
+    } else {
+      storage.removeItem(AUTH_CURRENT_USER_KEY);
+    }
+  } else {
+    authMemory.currentUser = user;
+  }
+}
+
+function showAuthForm(mode) {
+  if (currentUser) return;
+
+  authMode = mode;
+  const loginForm = document.getElementById("login-form");
+  const registerForm = document.getElementById("register-form");
+  const loginTab = document.getElementById("tab-login");
+  const registerTab = document.getElementById("tab-register");
+  const showLoginBtn = document.getElementById("show-login-btn");
+  const showRegisterBtn = document.getElementById("show-register-btn");
+
+  if (loginForm && registerForm) {
+    loginForm.classList.toggle("active", mode === "login");
+    registerForm.classList.toggle("active", mode === "register");
+  }
+
+  if (loginTab && registerTab) {
+    loginTab.classList.toggle("active", mode === "login");
+    registerTab.classList.toggle("active", mode === "register");
+  }
+
+  if (showLoginBtn && showRegisterBtn) {
+    showLoginBtn.classList.toggle("active", mode === "login");
+    showRegisterBtn.classList.toggle("active", mode === "register");
+  }
+
+  const message = document.getElementById("auth-message");
+  if (message) {
+    message.textContent = "";
+    message.className = "auth-message";
+  }
+}
+
+function updateQuizAccess() {
+  const startBtn = document.getElementById("start-btn");
+  const accessNote = document.getElementById("quiz-access-note");
+  const categoryCards = document.querySelectorAll(".category-card");
+
+  const locked = !currentUser;
+
+  if (startBtn) {
+    startBtn.disabled = locked;
+  }
+
+  categoryCards.forEach((card) => {
+    card.classList.toggle("locked", locked);
+  });
+
+  if (accessNote) {
+    accessNote.textContent = currentUser ? "" : translations[currentLanguage].loginToUnlock;
+  }
+
+  if (!currentUser) {
+    const quiz = document.getElementById("quiz");
+    if (quiz) {
+      quiz.innerHTML = "";
+    }
+  }
+}
+
+function updateAuthView() {
+  const authCard = document.getElementById("auth-card");
+  const authStatus = document.getElementById("auth-status");
+  const authMessage = document.getElementById("auth-message");
+
+  if (currentUser) {
+    if (authCard) authCard.classList.add("hidden");
+    if (authStatus) authStatus.innerHTML = "";
+  } else {
+    if (authCard) authCard.classList.remove("hidden");
+    if (authStatus) authStatus.innerHTML = "";
+  }
+
+  updateQuizAccess();
+
+  if (authMessage) {
+    authMessage.textContent = "";
+    authMessage.className = "auth-message";
+  }
+}
+
+function logoutUser() {
+  currentUser = null;
+  saveCurrentUser(null);
+  updateAuthView();
+  showAuthForm("login");
+}
+
+function handleAuthSubmit(event) {
+  event.preventDefault();
+  const message = document.getElementById("auth-message");
+
+  if (!message) return;
+
+  if (authMode === "login") {
+    const email = document.getElementById("login-email").value.trim();
+    const password = document.getElementById("login-password").value;
+
+    if (!email || !password) {
+      message.textContent = translations[currentLanguage].authError;
+      message.className = "auth-message error";
+      return;
+    }
+
+    const users = loadUsers();
+    const user = users.find((item) => item.email.toLowerCase() === email.toLowerCase());
+
+    if (!user || user.password !== password) {
+      message.textContent = translations[currentLanguage].invalidCredentials;
+      message.className = "auth-message error";
+      return;
+    }
+
+    currentUser = { name: user.name, email: user.email };
+    saveCurrentUser(currentUser);
+    updateAuthView();
+    message.textContent = translations[currentLanguage].authSuccessLogin;
+    message.className = "auth-message success";
+    return;
+  }
+
+  const name = document.getElementById("register-name").value.trim();
+  const email = document.getElementById("register-email").value.trim();
+  const password = document.getElementById("register-password").value;
+  const confirmPassword = document.getElementById("register-confirm").value;
+
+  if (!name || !email || !password || !confirmPassword) {
+    message.textContent = translations[currentLanguage].authError;
+    message.className = "auth-message error";
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    message.textContent = translations[currentLanguage].authPasswordMismatch;
+    message.className = "auth-message error";
+    return;
+  }
+
+  const users = loadUsers();
+  const existingUser = users.find((item) => item.email.toLowerCase() === email.toLowerCase());
+
+  if (existingUser) {
+    message.textContent = translations[currentLanguage].accountExists;
+    message.className = "auth-message error";
+    return;
+  }
+
+  users.push({ name, email, password });
+  saveUsers(users);
+  currentUser = { name, email };
+  saveCurrentUser(currentUser);
+  updateAuthView();
+  message.textContent = translations[currentLanguage].authSuccessRegister;
+  message.className = "auth-message success";
 }
 
 function renderDomainSelect() {
@@ -247,7 +535,10 @@ function renderDomainSelect() {
 
 function changeLanguage() {
   currentLanguage = document.getElementById("language").value;
-  updateTextLabels();
+  currentUser = loadCurrentUser();
+updateTextLabels();
+updateAuthView();
+showAuthForm("login");
 
   if (selectedCategory) {
     renderDomainSelect();
@@ -259,6 +550,8 @@ function changeLanguage() {
 }
 
 function selectCategory(category) {
+  if (!currentUser) return;
+
   selectedCategory = category;
   selectedDomain = "";
   renderDomainSelect();
@@ -313,6 +606,18 @@ const quizzes = {
 };
 
 function startQuiz() {
+  if (!currentUser) {
+    const quiz = document.getElementById("quiz");
+    if (quiz) {
+      quiz.innerHTML = `
+        <div class="info-card">
+          <h2>${translations[currentLanguage].loginToUnlock}</h2>
+        </div>
+      `;
+    }
+    return;
+  }
+
   const domainSelect = document.getElementById("domain");
   const quiz = document.getElementById("quiz");
 

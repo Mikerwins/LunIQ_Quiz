@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LunIQ</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
     
@@ -19,6 +19,50 @@
             <a href="#quiz" id="quiz-link">Quiz</a>
           </nav>
         </div>
+
+        <div class="auth-actions">
+          <button class="auth-btn" type="button" id="show-login-btn" onclick="showAuthForm('login')">Login</button>
+          <button class="auth-btn auth-btn-secondary" type="button" id="show-register-btn" onclick="showAuthForm('register')">Register</button>
+        </div>
+
+        <section class="auth-section" id="auth-section">
+          <div class="auth-card" id="auth-card">
+            <div class="auth-tabs">
+              <button class="auth-tab active" type="button" id="tab-login" data-form="login" onclick="showAuthForm('login')">Login</button>
+              <button class="auth-tab" type="button" id="tab-register" data-form="register" onclick="showAuthForm('register')">Register</button>
+            </div>
+
+            <form id="login-form" class="auth-form active" onsubmit="handleAuthSubmit(event)">
+              <label id="login-email-label" for="login-email">Email</label>
+              <input id="login-email" type="email" placeholder="you@example.com" required>
+
+              <label id="login-password-label" for="login-password">Password</label>
+              <input id="login-password" type="password" placeholder="••••••••" required>
+
+              <button class="start-btn auth-submit-btn" type="submit" id="login-submit-btn">Login</button>
+            </form>
+
+            <form id="register-form" class="auth-form" onsubmit="handleAuthSubmit(event)">
+              <label id="register-name-label" for="register-name">Full Name</label>
+              <input id="register-name" type="text" placeholder="Your name" required>
+
+              <label id="register-email-label" for="register-email">Email</label>
+              <input id="register-email" type="email" placeholder="you@example.com" required>
+
+              <label id="register-password-label" for="register-password">Password</label>
+              <input id="register-password" type="password" placeholder="••••••••" required>
+
+              <label id="register-confirm-label" for="register-confirm">Confirm Password</label>
+              <input id="register-confirm" type="password" placeholder="Repeat password" required>
+
+              <button class="start-btn auth-submit-btn" type="submit" id="register-submit-btn">Register</button>
+            </form>
+
+            <p class="auth-message" id="auth-message"></p>
+          </div>
+
+          <div id="auth-status" class="auth-status"></div>
+        </section>
 
         <section class="control-panel">
           <div class="control-group">
@@ -68,13 +112,14 @@
             </div>
           </div>
 
+          <p id="quiz-access-note" class="access-note">Login or register to unlock the quiz</p>
           <button class="start-btn" id="start-btn" onclick="startQuiz()">Start Quiz</button>
         </section>
 
         <div id="quiz"></div>
     </div>
 
-    <script src="script.js"></script>
+    <script src="script.js?v=2"></script>
     
 </body>
 </html>
