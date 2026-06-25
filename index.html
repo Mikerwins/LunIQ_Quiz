@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LunIQ</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    
+    <div class="container">
+
+        <div class="header">
+          <h1>LunIQ</h1>
+          <p id="subtitle">AI powered Learning Platform</p>
+          <nav class="top-nav">
+            <a href="#categories-section" id="categories-link">Categories</a>
+            <a href="#setup-section" id="setup-link">Setup</a>
+            <a href="#quiz" id="quiz-link">Quiz</a>
+          </nav>
+        </div>
+
+        <section class="control-panel">
+          <div class="control-group">
+            <label id="language-label">Language</label>
+            <select id="language" onchange="changeLanguage()">
+              <option value="en">English</option>
+              <option value="fr">Français</option>
+            </select>
+          </div>
+        </section>
+
+        <section id="categories-section">
+          <h2 id="category-title" class="section-title">Choose a Category</h2>
+
+          <div class="categories">
+            <div class="category-card" id="tech-card" onclick="selectCategory('Technology')">🖥️ Technology</div>
+            <div class="category-card" id="health-card" onclick="selectCategory('Health')">🏥 Health & Medicine</div>
+            <div class="category-card" id="engin-card" onclick="selectCategory('Engineering')">🏗️ Engineering & Architecture</div>
+            <div class="category-card" id="science-card" onclick="selectCategory('Science')">🔬 Science</div>
+            <div class="category-card" id="lang-card" onclick="selectCategory('Languages')">📚 Languages</div>
+            <div class="category-card" id="sports-card" onclick="selectCategory('Sports')">⚽ Sports</div>
+            <div class="category-card" id="business-card" onclick="selectCategory('Business')">💼 Business</div>
+            <div class="category-card" id="law-card" onclick="selectCategory('Law')">⚖️ Law</div>
+          </div>
+        </section>
+
+        <section id="setup-section" class="setup-panel">
+          <div id="domains"></div>
+
+          <div class="setup-grid">
+            <div class="control-group">
+              <label id="difficult-label">Difficulty</label>
+              <select id="level">
+                <option value="easy">Easy</option>
+                <option value="normal">Normal</option>
+                <option value="hard">Hard</option>
+              </select>
+            </div>
+
+            <div class="control-group">
+              <label id="count-label">Number of Questions</label>
+              <select id="count">
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+              </select>
+            </div>
+          </div>
+
+          <button class="start-btn" id="start-btn" onclick="startQuiz()">Start Quiz</button>
+        </section>
+
+        <div id="quiz"></div>
+    </div>
+
+    <script src="script.js"></script>
+    
+</body>
+</html>
