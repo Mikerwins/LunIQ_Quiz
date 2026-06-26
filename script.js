@@ -46,7 +46,9 @@ const translations = {
     loggedInAs: "You are signed in as",
     accountExists: "An account with this email already exists",
     invalidCredentials: "Email or password is incorrect",
-    loginToUnlock: "Login or register to unlock the quiz"
+    loginToUnlock: "Login or register to unlock the quiz",
+    aiLoading: "🤖 AI is generating your quiz...",
+    pleaseWait: "⏳ Please wait...",
   },
   fr: {
     title: "Plateforme d'apprentissage alimentée par l'IA",
@@ -95,7 +97,9 @@ const translations = {
     loggedInAs: "Vous êtes connecté en tant que",
     accountExists: "Un compte avec cet e-mail existe déjà",
     invalidCredentials: "L’e-mail ou le mot de passe est incorrect",
-    loginToUnlock: "Connectez-vous ou créez un compte pour débloquer le quiz"
+    loginToUnlock: "Connectez-vous ou créez un compte pour débloquer le quiz",
+    aiLoading: "🤖 L'IA génère votre quiz...",
+    pleaseWait: "⏳ Veuillez patienter..."
   }
 };
 
@@ -227,6 +231,8 @@ let currentLanguage = "en";
 let selectedCategory = "";
 let selectedDomain = "";
 let questions = [];
+let quizTimer;
+let timeLeft = 0;
 let authMode = "login";
 let currentUser = null;
 
@@ -425,7 +431,7 @@ function updateAuthView() {
 
   if (currentUser) {
     if (authCard) authCard.classList.add("hidden");
-    if (authStatus) authStatus.innerHTML = "";
+    renderDashboard();
   } else {
     if (authCard) authCard.classList.remove("hidden");
     if (authStatus) authStatus.innerHTML = "";
@@ -437,6 +443,47 @@ function updateAuthView() {
     authMessage.textContent = "";
     authMessage.className = "auth-message";
   }
+}
+
+function renderDashboard() {
+
+  if (!currentUser) return;
+
+  const users = loadUsers();
+
+  const user = users.find(
+    u => u.email === currentUser.email
+  );
+
+  if (!user) return;
+
+  const authStatus =
+    document.getElementById("auth-status");
+
+  authStatus.innerHTML = `
+    <div class="auth-status-card">
+      <h2>👋 ${translations[currentLanguage].welcome} ${user.name}</h2>
+
+      <p>📚 Quizzes completed:
+      ${user.stats.quizzesCompleted}</p>
+
+      <p>🏆 Best score:
+      ${user.stats.bestScore}%</p>
+
+      <p>📈 Last score:
+      ${user.stats.lastScore}%</p>
+
+      <p>🖥️ Favorite category:
+      ${user.stats.favoriteCategory}</p>
+
+      <br>
+
+      <button class="auth-btn"
+              onclick="logoutUser()">
+        ${translations[currentLanguage].logout}
+      </button>
+    </div>
+  `;
 }
 
 function logoutUser() {
@@ -505,7 +552,17 @@ function handleAuthSubmit(event) {
     return;
   }
 
-  users.push({ name, email, password });
+  users.push({
+  name,
+  email,
+  password,
+  stats: {
+    quizzesCompleted: 0,
+    bestScore: 0,
+    lastScore: 0,
+    favoriteCategory: "-"
+  }
+});
   saveUsers(users);
   currentUser = { name, email };
   saveCurrentUser(currentUser);
@@ -551,6 +608,28 @@ showAuthForm("login");
 
 function selectCategory(category) {
   if (!currentUser) return;
+
+  document.querySelectorAll(".category-card").forEach(card => {
+    card.classList.remove("selected");
+  });
+
+  const categoryMap = {
+    Technology: "tech-card",
+    Health: "health-card",
+    Engineering: "engin-card",
+    Science: "science-card",
+    Languages: "lang-card",
+    Sports: "sports-card",
+    Business: "business-card",
+    Law: "law-card"
+  };
+
+  const selectedCard =
+      document.getElementById(categoryMap[category]);
+
+  if(selectedCard){
+      selectedCard.classList.add("selected");
+  }
 
   selectedCategory = category;
   selectedDomain = "";
@@ -633,19 +712,32 @@ function startQuiz() {
 
   const domain = domainSelect.value;
   selectedDomain = domain;
-  questions = getQuestionsForDomain(domain);
 
-  if (!questions.length) {
-    quiz.innerHTML = `
-      <div class="info-card">
-        <h2>${translations[currentLanguage].sorry}</h2>
-        <p>${translations[currentLanguage].noQuizMessage}</p>
-      </div>
-    `;
-    return;
-  }
+quiz.innerHTML = `
+  <div class="info-card">
+    <div class="loader"></div>
+    <h2>${translations[currentLanguage].aiLoading}</h2>
+    <p>${translations[currentLanguage].pleaseWait}</p>
+  </div>
+`;
 
-  renderQuiz();
+setTimeout(() => {
+    questions = getQuestionsForDomain(domain);
+
+    if (!questions.length) {
+        quiz.innerHTML = `
+          <div class="info-card">
+            <h2>${translations[currentLanguage].sorry}</h2>
+            <p>${translations[currentLanguage].noQuizMessage}</p>
+          </div>
+        `;
+        return;
+    }
+
+    renderQuiz();
+    startTimer();
+
+}, 2000);
 }
 
 function renderQuiz() {
@@ -656,7 +748,11 @@ function renderQuiz() {
     return;
   }
 
-  let html = "";
+  let html = `
+<div class="info-card">
+  <h2 id="timer"></h2>
+</div>
+`;
   questions.forEach((q, index) => {
     html += `<div class="question-card"><h3>${index + 1}. ${q.question}</h3>`;
     q.options.forEach((option) => {
@@ -670,6 +766,7 @@ function renderQuiz() {
 }
 
 function submitQuiz() {
+  clearInterval(quizTimer);
   let score = 0;
   let resultHTML = "";
 
@@ -713,3 +810,55 @@ function submitQuiz() {
 }
 
 updateTextLabels();
+
+function startTimer() {
+
+  const count = parseInt(document.getElementById("count").value);
+
+  if(count === 5){
+    timeLeft = 120;
+  }
+  else if(count === 10){
+    timeLeft = 300;
+  }
+  else{
+    timeLeft = 600;
+  }
+
+  updateTimerDisplay();
+
+  quizTimer = setInterval(() => {
+
+    timeLeft--;
+
+    updateTimerDisplay();
+
+    if(timeLeft <= 0){
+      clearInterval(quizTimer);
+
+      alert("⏰ Time is up!");
+
+      submitQuiz();
+    }
+
+  },1000);
+}
+
+function updateTimerDisplay(){
+
+  const timerElement =
+    document.getElementById("timer");
+
+  if(!timerElement) return;
+
+  const minutes =
+    Math.floor(timeLeft / 60);
+
+  const seconds =
+    timeLeft % 60;
+
+  timerElement.textContent =
+    `⏱ ${minutes}:${seconds
+      .toString()
+      .padStart(2,"0")}`;
+}
