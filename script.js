@@ -232,6 +232,7 @@ let selectedCategory = "";
 let selectedDomain = "";
 let questions = [];
 let quizTimer;
+let quizLoadingTimer = null;
 let timeLeft = 0;
 let authMode = "login";
 let currentUser = null;
@@ -443,6 +444,8 @@ function updateAuthView() {
     authMessage.textContent = "";
     authMessage.className = "auth-message";
   }
+  renderLeaderboard();
+  renderProgressDashboard();
 }
 
 function renderDashboard() {
@@ -553,16 +556,27 @@ function handleAuthSubmit(event) {
   }
 
   users.push({
-  name,
-  email,
-  password,
-  stats: {
-    quizzesCompleted: 0,
-    bestScore: 0,
-    lastScore: 0,
-    favoriteCategory: "-"
-  }
-});
+    name,
+    email,
+    password,
+    stats: {
+      quizzesCompleted: 0,
+      bestScore: 0,
+      lastScore: 0,
+      favoriteCategory: "-",
+      categoryProgress: {
+        Technology: 0,
+        Health: 0,
+        Engineering: 0,
+        Science: 0,
+        Languages: 0,
+        Sports: 0,
+        Business: 0,
+        Law: 0
+      }
+    }
+  });
+
   saveUsers(users);
   currentUser = { name, email };
   saveCurrentUser(currentUser);
@@ -635,24 +649,7 @@ function selectCategory(category) {
   selectedDomain = "";
   renderDomainSelect();
 }
-
-function getQuestionsForDomain(domain) {
-  const quizSet = quizzes[domain];
-  if (quizSet && quizSet[currentLanguage]) return quizSet[currentLanguage];
-  if (quizSet && quizSet.en) return quizSet.en;
-
-  return [{
-    question: currentLanguage === "fr" ? `Qu’est-ce que ${domain} ?` : `What is ${domain}?`,
-    options: [
-      currentLanguage === "fr" ? `Un sujet en ${domain}` : `A topic in ${domain}`,
-      currentLanguage === "fr" ? "Un type de nourriture" : "A type of food",
-      currentLanguage === "fr" ? "Une couleur" : "A color",
-      currentLanguage === "fr" ? "Un instrument de musique" : "A musical instrument"
-    ],
-    answer: currentLanguage === "fr" ? `Un sujet en ${domain}` : `A topic in ${domain}`
-  }];
-}
-
+ 
 const quizzes = {
   Programming: {
     en: [
@@ -684,7 +681,48 @@ const quizzes = {
   }
 };
 
+function getQuestionsForDomain(domain) {
+  const quizSet = quizzes[domain];
+  if (quizSet && quizSet[currentLanguage]) return quizSet[currentLanguage];
+  if (quizSet && quizSet.en) return quizSet.en;
+
+  return [{
+    question: currentLanguage === "fr" ? `Qu’est-ce que ${domain} ?` : `What is ${domain}?`,
+    options: [
+      currentLanguage === "fr" ? `Un sujet en ${domain}` : `A topic in ${domain}`,
+      currentLanguage === "fr" ? "Un type de nourriture" : "A type of food",
+      currentLanguage === "fr" ? "Une couleur" : "A color",
+      currentLanguage === "fr" ? "Un instrument de musique" : "A musical instrument"
+    ],
+    answer: currentLanguage === "fr" ? `Un sujet en ${domain}` : `A topic in ${domain}`
+  }];
+}
+
+
+
+function showQuizLoading() {
+  const quiz = document.getElementById("quiz");
+  if (!quiz) return;
+
+  quiz.innerHTML = `
+    <div class="info-card">
+      <div class="loader" aria-label="Loading"></div>
+      <h2>${translations[currentLanguage].aiLoading}</h2>
+      <p>${translations[currentLanguage].pleaseWait}</p>
+    </div>
+  `;
+}
+
+function clearQuizLoadingTimer() {
+  if (quizLoadingTimer) {
+    clearTimeout(quizLoadingTimer);
+    quizLoadingTimer = null;
+  }
+}
+
 function startQuiz() {
+  clearQuizLoadingTimer();
+
   if (!currentUser) {
     const quiz = document.getElementById("quiz");
     if (quiz) {
@@ -712,32 +750,25 @@ function startQuiz() {
 
   const domain = domainSelect.value;
   selectedDomain = domain;
+  showQuizLoading();
 
-quiz.innerHTML = `
-  <div class="info-card">
-    <div class="loader"></div>
-    <h2>${translations[currentLanguage].aiLoading}</h2>
-    <p>${translations[currentLanguage].pleaseWait}</p>
-  </div>
-`;
-
-setTimeout(() => {
+  quizLoadingTimer = window.setTimeout(() => {
+    quizLoadingTimer = null;
     questions = getQuestionsForDomain(domain);
 
     if (!questions.length) {
-        quiz.innerHTML = `
-          <div class="info-card">
-            <h2>${translations[currentLanguage].sorry}</h2>
-            <p>${translations[currentLanguage].noQuizMessage}</p>
-          </div>
-        `;
-        return;
+      quiz.innerHTML = `
+        <div class="info-card">
+          <h2>${translations[currentLanguage].sorry}</h2>
+          <p>${translations[currentLanguage].noQuizMessage}</p>
+        </div>
+      `;
+      return;
     }
 
     renderQuiz();
     startTimer();
-
-}, 2000);
+  }, 2000);
 }
 
 function renderQuiz() {
@@ -750,15 +781,30 @@ function renderQuiz() {
 
   let html = `
 <div class="info-card">
-  <h2 id="timer"></h2>
+    <h2 id="timer"></h2>
+
+    <div class="progress-text">
+        ${questions.length} Questions
+    </div>
+
+    <div class="progress-container">
+        <div class="progress-bar" style="width:0%"></div>
+    </div>
 </div>
 `;
   questions.forEach((q, index) => {
     html += `<div class="question-card"><h3>${index + 1}. ${q.question}</h3>`;
-    q.options.forEach((option) => {
-      html += `<label class="option"><input type="radio" name="q${index}" value="${option}">${option}</label>`;
-    });
-    html += "</div>";
+   q.options.forEach((option) => {
+  html += `
+    <label class="option">
+      <input type="radio"
+             name="q${index}"
+             value="${option}"
+             onchange="updateProgress()">
+      ${option}
+    </label>
+  `;
+});
   });
 
   html += `<button class="submit-btn" onclick="submitQuiz()">${translations[currentLanguage].submitQuiz}</button>`;
@@ -787,6 +833,42 @@ function submitQuiz() {
   });
 
   const percentage = Math.round((score / questions.length) * 100);
+  if (currentUser) {
+    const users = loadUsers();
+    const userIndex = users.findIndex((user) => user.email === currentUser.email);
+
+    if (userIndex !== -1) {
+      if (!users[userIndex].stats) {
+        users[userIndex].stats = {
+          quizzesCompleted: 0,
+          bestScore: 0,
+          lastScore: 0,
+          favoriteCategory: "-",
+          categoryProgress: {}
+        };
+      }
+
+      if (!users[userIndex].stats.categoryProgress) {
+        users[userIndex].stats.categoryProgress = {};
+      }
+
+      users[userIndex].stats.quizzesCompleted += 1;
+      users[userIndex].stats.lastScore = percentage;
+
+      if (percentage > users[userIndex].stats.bestScore) {
+        users[userIndex].stats.bestScore = percentage;
+      }
+
+      users[userIndex].stats.favoriteCategory = selectedCategory || users[userIndex].stats.favoriteCategory || "-";
+
+      if (selectedCategory) {
+        users[userIndex].stats.categoryProgress[selectedCategory] = percentage;
+      }
+
+      saveUsers(users);
+      renderLeaderboard();
+    }
+  }
   let badge = "";
 
   if (percentage >= 90) badge = translations[currentLanguage].expert;
@@ -807,6 +889,7 @@ function submitQuiz() {
       <button class="home-btn" onclick="location.reload()">🏠 ${translations[currentLanguage].home}</button>
     </div>
   `;
+  updateAuthView();
 }
 
 updateTextLabels();
@@ -861,4 +944,119 @@ function updateTimerDisplay(){
     `⏱ ${minutes}:${seconds
       .toString()
       .padStart(2,"0")}`;
+}
+
+function updateProgress(){
+
+    const answered =
+        document.querySelectorAll(
+            'input[type="radio"]:checked'
+        ).length;
+
+    const progress =
+        (answered / questions.length) * 100;
+
+    const bar =
+        document.querySelector(".progress-bar");
+
+    const text =
+        document.querySelector(".progress-text");
+
+    if(bar){
+        bar.style.width = `${progress}%`;
+    }
+
+    if(text){
+        text.textContent =
+            `${answered} / ${questions.length} answered (${Math.round(progress)}%)`;
+    }
+}
+
+function renderLeaderboard(){
+
+    const users = loadUsers();
+
+    const leaderboard =
+        document.getElementById("leaderboard");
+
+    if(!leaderboard) return;
+
+    const rankedUsers = users
+        .filter(user => user.stats)
+        .sort((a,b) =>
+            b.stats.bestScore -
+            a.stats.bestScore
+        )
+        .slice(0,5);
+
+    if(rankedUsers.length === 0){
+        leaderboard.innerHTML =
+            `<div class="leaderboard-card">
+                No scores yet.
+            </div>`;
+        return;
+    }
+
+    let html =
+        `<div class="leaderboard-card">`;
+
+    rankedUsers.forEach((user,index)=>{
+
+        html += `
+            <div class="leaderboard-item">
+                <span class="rank">
+                    #${index+1} ${user.name}
+                </span>
+
+                <span>
+                    ${user.stats.bestScore}%
+                </span>
+            </div>
+        `;
+    });
+
+    html += `</div>`;
+
+    leaderboard.innerHTML = html;
+}
+
+function renderProgressDashboard(){
+
+    if(!currentUser) return;
+
+    const users = loadUsers();
+
+    const user = users.find(
+        u => u.email === currentUser.email
+    );
+
+    if(!user || !user.stats) return;
+
+    const progress =
+        user.stats.categoryProgress;
+
+    let html = `
+        <div class="leaderboard-card">
+            <h2>📊 Learning Progress</h2>
+    `;
+
+    for(const category in progress){
+
+        html += `
+            <p>${category} - ${progress[category]}%</p>
+
+            <div class="progress-container">
+                <div class="progress-bar"
+                     style="
+                     width:${progress[category]}%">
+                </div>
+            </div>
+        `;
+    }
+
+    html += `</div>`;
+
+    document.getElementById(
+        "auth-status"
+    ).innerHTML += html;
 }
